@@ -1,7 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Sparkles } from "lucide-react";
 
 export function Footer() {
+  const pathname = usePathname();
+
+  // Do not render Footer on the landing profile selection screen (/)
+  if (pathname === "/") return null;
+
   return (
     <footer className="w-full border-t border-border/60 bg-background/50 py-8 text-sm text-muted-foreground">
       <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-8">
@@ -10,13 +18,10 @@ export function Footer() {
             <Sparkles className="h-3.5 w-3.5" />
           </div>
           <span className="font-semibold text-foreground">Intervu</span>
-          <span>&mdash; AI-Powered Technical Interview Platform</span>
+          <span>&mdash; AI Technical Interview Platform</span>
         </div>
 
         <div className="flex items-center gap-6">
-          <Link href="/" className="hover:text-foreground transition-colors">
-            Home
-          </Link>
           <Link href="/dashboard" className="hover:text-foreground transition-colors">
             Dashboard
           </Link>

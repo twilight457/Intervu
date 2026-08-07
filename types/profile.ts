@@ -1,39 +1,33 @@
-export interface CompletedModule {
-  dayNumber: number;
-  completedAt: string;
-  scorePercentage?: number;
-  verifiedObjectives: string[];
-}
-
-export interface SkippedTopic {
-  topicId: string;
-  dayNumber: number;
-  reason?: string;
-}
-
-export interface AttemptHistory {
-  attemptId: string;
-  date: string;
-  interviewScore: number;
-  passed: boolean;
-  notes?: string;
-}
-
-export interface LearningProgress {
-  overallCompletionPercentage: number;
-  currentDay: number;
-  streakDays: number;
-  lastActiveDate: string;
-}
-
-export interface LearnerProfile {
+export interface CandidateMember {
   id: string;
   name: string;
-  email: string;
+  jobRole: string;
+  yearsExperience: number;
+  education: string;
+  status: string;
   avatarUrl?: string;
-  cohortId: string;
-  completedModules: CompletedModule[];
-  skippedTopics: SkippedTopic[];
-  attempts: AttemptHistory[];
-  progress: LearningProgress;
+}
+
+export interface CandidateMission {
+  day: number;
+  title: string;
+  passed?: boolean;
+  attempts?: number;
+  skipped?: boolean;
+}
+
+export interface CandidateSignals {
+  commitDays: number;
+  missionsCompleted: number;
+  missionsFirstTry: number;
+}
+
+export interface CandidateProfile {
+  member: CandidateMember;
+  missions: CandidateMission[];
+  signals: CandidateSignals;
+}
+
+export interface CandidatesData {
+  candidates: CandidateProfile[];
 }
