@@ -3,26 +3,26 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold leading-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] select-none",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold leading-none transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40 active:scale-[0.98] select-none",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 hover:shadow-indigo-500/20 hover:shadow-md",
+          "bg-indigo-600 text-white hover:bg-indigo-500 shadow-2xs",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90",
+          "bg-rose-950/80 text-rose-300 border border-rose-800/80 hover:bg-rose-900/90 shadow-2xs",
         outline:
-          "border border-border bg-background shadow-2xs hover:bg-accent hover:text-accent-foreground border-slate-200 dark:border-slate-800",
+          "border border-slate-800 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white shadow-2xs",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-2xs hover:bg-secondary/80",
+          "bg-slate-800/80 text-slate-100 hover:bg-slate-700/90 shadow-2xs",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground",
+          "text-slate-300 hover:bg-slate-800/60 hover:text-white",
         link:
-          "text-primary underline-offset-4 hover:underline",
+          "text-indigo-400 underline-offset-4 hover:underline",
         gradient:
-          "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/30",
+          "bg-indigo-600 text-white hover:bg-indigo-500 shadow-2xs",
         success:
-          "bg-success text-success-foreground shadow-xs hover:bg-success/90",
+          "bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 hover:bg-emerald-900/90 shadow-2xs",
       },
       size: {
         default: "h-11 px-5 py-2.5 text-sm",

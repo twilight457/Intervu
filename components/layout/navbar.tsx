@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, UserCheck } from "lucide-react";
+import { UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
@@ -12,26 +12,26 @@ export function Navbar() {
   if (pathname === "/") return null;
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/85 backdrop-blur-md transition-all">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-[#0b0f17]/90 backdrop-blur-md transition-all">
       <div className="max-w-5xl mx-auto flex h-20 items-center justify-between px-4 sm:px-6">
         {/* Brand Logo */}
-        <Link href="/dashboard" className="inline-flex items-center justify-center gap-3 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-200 shrink-0">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-foreground">
-            Intervu
-          </span>
+        <Link href="/dashboard" className="inline-flex items-center shrink-0 hover:opacity-90 transition-opacity">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/intervu-logo.png"
+            alt="Intervu Logo"
+            className="w-[150px] h-auto object-contain"
+          />
         </Link>
 
-        {/* Change Profile Button */}
+        {/* Change Profile Button - High Visibility */}
         <Button
           asChild
           variant="outline"
-          className="h-10 px-5 text-sm font-semibold rounded-xl border-border/80 hover:bg-accent inline-flex items-center justify-center gap-2 whitespace-nowrap"
+          className="h-10 px-5 text-sm font-semibold rounded-xl border border-slate-700/80 bg-slate-800/90 hover:bg-slate-700 text-slate-100 hover:text-white shadow-xs transition-colors inline-flex items-center justify-center gap-2.5 whitespace-nowrap"
         >
-          <Link href="/" className="inline-flex items-center justify-center gap-2">
-            <UserCheck className="h-[18px] w-[18px] text-indigo-600 dark:text-indigo-400 shrink-0" />
+          <Link href="/" className="inline-flex items-center justify-center gap-2.5">
+            <UserCheck className="h-[18px] w-[18px] text-indigo-400 shrink-0" />
             <span>Change Profile</span>
           </Link>
         </Button>

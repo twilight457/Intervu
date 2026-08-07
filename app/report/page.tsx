@@ -6,15 +6,15 @@ import { Badge } from "@/components/ui/badge";
 
 export default function ReportPage() {
   return (
-    <div className="container mx-auto px-4 sm:px-8 py-8 space-y-8">
+    <div className="min-h-screen bg-[#0b0f17] text-slate-100 py-8 px-4 sm:px-6 space-y-8 max-w-5xl mx-auto">
       {/* Report Header Shell */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <FileCheck className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            <h1 className="text-3xl font-bold tracking-tight">Technical Feedback Report</h1>
+            <FileCheck className="h-5 w-5 text-indigo-400" />
+            <h1 className="text-3xl font-bold tracking-tight text-slate-50">Technical Feedback Report</h1>
           </div>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-slate-400 text-sm font-medium">
             Structured evaluation detailing strengths, weaknesses, recommended review days, and overall score.
           </p>
         </div>
@@ -31,50 +31,50 @@ export default function ReportPage() {
 
       {/* Score Overview Cards Container Shell */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent border-indigo-500/20">
+        <Card className="rounded-2xl border border-slate-800/80 bg-[#131924]/80">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase font-bold tracking-wider text-indigo-600 dark:text-indigo-400">
+            <CardDescription className="text-xs uppercase font-bold tracking-wider text-indigo-400">
               Overall Score
             </CardDescription>
-            <CardTitle className="text-3xl font-extrabold">&mdash; / 100</CardTitle>
+            <CardTitle className="text-3xl font-extrabold text-slate-50">&mdash; / 100</CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
+          <CardContent className="text-xs text-slate-400 font-medium">
             Composite evaluation metric
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border border-slate-800/80 bg-[#131924]/80">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase font-bold tracking-wider">
+            <CardDescription className="text-xs uppercase font-bold tracking-wider text-slate-400">
               Technical Accuracy
             </CardDescription>
-            <CardTitle className="text-2xl font-bold">&mdash; %</CardTitle>
+            <CardTitle className="text-2xl font-bold text-slate-50">&mdash; %</CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
+          <CardContent className="text-xs text-slate-400 font-medium">
             Concept alignment
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border border-slate-800/80 bg-[#131924]/80">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase font-bold tracking-wider">
+            <CardDescription className="text-xs uppercase font-bold tracking-wider text-slate-400">
               Problem Solving
             </CardDescription>
-            <CardTitle className="text-2xl font-bold">&mdash; %</CardTitle>
+            <CardTitle className="text-2xl font-bold text-slate-50">&mdash; %</CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
+          <CardContent className="text-xs text-slate-400 font-medium">
             Adaptive query responses
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border border-slate-800/80 bg-[#131924]/80">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase font-bold tracking-wider">
+            <CardDescription className="text-xs uppercase font-bold tracking-wider text-slate-400">
               Curriculum Days
             </CardDescription>
-            <CardTitle className="text-2xl font-bold">&mdash; / 4+</CardTitle>
+            <CardTitle className="text-2xl font-bold text-slate-50">&mdash; / 4+</CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
+          <CardContent className="text-xs text-slate-400 font-medium">
             Days evaluated
           </CardContent>
         </Card>
@@ -83,17 +83,17 @@ export default function ReportPage() {
       {/* Detailed Feedback Sections Shell */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Strengths Container */}
-        <Card>
+        <Card className="rounded-2xl border border-slate-800/80 bg-[#131924]/80">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-emerald-500" />
-              <CardTitle>Identified Strengths</CardTitle>
+              <Award className="h-5 w-5 text-emerald-400" />
+              <CardTitle className="text-slate-50">Identified Strengths</CardTitle>
             </div>
-            <CardDescription>Topics where the candidate demonstrated strong mastery.</CardDescription>
+            <CardDescription className="text-slate-400">Topics where the candidate demonstrated strong mastery.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="border border-dashed border-border rounded-lg p-8 text-center bg-muted/20">
-              <p className="text-xs text-muted-foreground">
+            <div className="border border-dashed border-slate-800 rounded-xl p-8 text-center bg-slate-900/40">
+              <p className="text-xs text-slate-400 font-medium">
                 Strengths breakdown will populate here upon interview completion.
               </p>
             </div>
@@ -101,17 +101,17 @@ export default function ReportPage() {
         </Card>
 
         {/* Weaknesses Container */}
-        <Card>
+        <Card className="rounded-2xl border border-slate-800/80 bg-[#131924]/80">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <CardTitle>Areas for Improvement</CardTitle>
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              <CardTitle className="text-slate-50">Areas for Improvement</CardTitle>
             </div>
-            <CardDescription>Topics requiring further study or clarification.</CardDescription>
+            <CardDescription className="text-slate-400">Topics requiring further study or clarification.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="border border-dashed border-border rounded-lg p-8 text-center bg-muted/20">
-              <p className="text-xs text-muted-foreground">
+            <div className="border border-dashed border-slate-800 rounded-xl p-8 text-center bg-slate-900/40">
+              <p className="text-xs text-slate-400 font-medium">
                 Knowledge gaps and missed concepts will populate here.
               </p>
             </div>
@@ -120,21 +120,21 @@ export default function ReportPage() {
       </div>
 
       {/* Recommended Review Days Shell */}
-      <Card>
+      <Card className="rounded-2xl border border-slate-800/80 bg-[#131924]/80">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5 text-indigo-500" />
-              <CardTitle>Recommended Review Days</CardTitle>
+              <Lightbulb className="h-5 w-5 text-indigo-400" />
+              <CardTitle className="text-slate-50">Recommended Review Days</CardTitle>
             </div>
-            <Badge variant="outline">Targeted Learning</Badge>
+            <Badge variant="outline" className="border-slate-800 text-slate-400">Targeted Learning</Badge>
           </div>
-          <CardDescription>Curriculum days prioritized for candidate review based on interview answers.</CardDescription>
+          <CardDescription className="text-slate-400">Curriculum days prioritized for candidate review based on interview answers.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="border border-dashed border-border rounded-lg p-10 text-center bg-muted/20">
-            <RefreshCw className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-            <p className="text-xs text-muted-foreground">
+          <div className="border border-dashed border-slate-800 rounded-xl p-10 text-center bg-slate-900/40">
+            <RefreshCw className="h-8 w-8 mx-auto text-slate-600 mb-2" />
+            <p className="text-xs text-slate-400 font-medium">
               Day-by-day curriculum recommendations ready for interview evaluation generator.
             </p>
           </div>

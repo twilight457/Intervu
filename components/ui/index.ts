@@ -5,3 +5,4 @@ export * from './input';
 export * from './progress';
 export * from './avatar';
 export * from './dialog';
+export * from './illustrated-avatar';
