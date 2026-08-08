@@ -72,21 +72,35 @@ export async function evaluateCandidateAnswer(
   curriculumObjective?: string
 ): Promise<EvaluationResult> {
   const trimmed = candidateAnswer ? candidateAnswer.trim() : "";
-  const isExplicitSkip = isSkipped || checkUncertainty(trimmed);
+  const isExplicitButtonSkip = isSkipped || trimmed.toLowerCase() === "skipped by candidate" || trimmed.toLowerCase() === "[skipped by candidate]";
+  const isUncertainty = checkUncertainty(trimmed);
   const targetObjective = curriculumObjective || dayInfo.objectives?.[0] || dayInfo.title;
 
   const defaultExpected = generateDefaultExpectedAnswer(currentQuestion, dayInfo, targetObjective);
 
-  // 1. Explicit uncertainty / skip rule (SKIPPED QUESTIONS MUST NEVER TRIGGER FOLLOW-UPS)
-  if (isExplicitSkip) {
+  // 1. Explicit button skip: advance immediately without follow-up
+  if (isExplicitButtonSkip) {
     return {
       verdict: "not_attempted",
-      reasoning: "Candidate skipped or indicated uncertainty for this question.",
+      reasoning: "Candidate skipped this question.",
       expected_answer: defaultExpected,
       concepts_demonstrated: [],
       concepts_missing: [targetObjective],
       factual_errors: [],
       should_follow_up: false,
+    };
+  }
+
+  // 2. Explicit uncertainty response ("I'm not sure", "I don't know"): trigger targeted follow-up if limit not reached
+  if (isUncertainty) {
+    return {
+      verdict: "not_attempted",
+      reasoning: "Candidate indicated uncertainty for this question.",
+      expected_answer: defaultExpected,
+      concepts_demonstrated: [],
+      concepts_missing: [targetObjective],
+      factual_errors: [],
+      should_follow_up: followUpCount < 2,
     };
   }
 

@@ -94,7 +94,7 @@ export async function determineNextTurn(
   totalPlannedMainQuestions: number = 8,
   evalResult?: EvaluationResult
 ): Promise<NextTurnDecision> {
-  const isTurnComplete = !evalResult || !evalResult.should_follow_up || evalResult.verdict === "not_attempted";
+  const isTurnComplete = !evalResult || !evalResult.should_follow_up;
   const isAtOrBeyondPlanned = currentMainQNum >= totalPlannedMainQuestions;
 
   // End interview ONLY when at or beyond planned main questions AND minimum 8 main questions completed
@@ -112,11 +112,7 @@ export async function determineNextTurn(
     };
   }
 
-  // SKIPPED / NOT_ATTEMPTED QUESTIONS MUST NEVER TRIGGER FOLLOW-UPS
-  const shouldFollowUp =
-    evalResult && evalResult.verdict !== "not_attempted"
-      ? evalResult.should_follow_up && followUpCount === 0
-      : false;
+  const shouldFollowUp = evalResult ? evalResult.should_follow_up && followUpCount === 0 : false;
 
   let nextType: "MAIN_QUESTION" | "FOLLOW_UP";
   let targetMainQNum: number;

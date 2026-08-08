@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -33,7 +33,7 @@ import {
 const data = candidatesDataRaw as CandidatesData;
 const defaultCandidate = data.candidates[0];
 
-export default function ReportPage() {
+function ReportContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [candidate, setCandidate] = useState<CandidateProfile>(defaultCandidate);
@@ -450,5 +450,22 @@ export default function ReportPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function ReportPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 flex items-center justify-center min-h-[50vh]">
+          <div className="animate-pulse space-y-4 text-center">
+            <div className="h-8 w-44 bg-muted rounded-xl mx-auto" />
+            <div className="h-4 w-60 bg-muted/60 rounded-lg mx-auto" />
+          </div>
+        </div>
+      }
+    >
+      <ReportContent />
+    </Suspense>
   );
 }

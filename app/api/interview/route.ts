@@ -107,6 +107,13 @@ export async function POST(request: Request) {
         }),
       };
 
+      if (!session) {
+        return NextResponse.json(
+          { error: "Failed to initialize interview session." },
+          { status: 500 }
+        );
+      }
+
       session.turns.push(turn1Record);
       saveSession(session);
 
@@ -326,7 +333,7 @@ function finalizeSession(session: InterviewSession): InterviewFeedbackReport {
       candidateAnswer: t.answer || "[No answer provided]",
       finalVerdict: t.evaluation?.verdict || "not_attempted",
       evaluationReasoning: t.evaluation?.reasoning || "Question was not attempted.",
-      expectedAnswer: t.evaluation?.expected_answer || `A complete answer should address ${t.curriculumObjective.toLowerCase()}, explaining key implementation steps and trade-offs.`,
+      expectedAnswer: t.evaluation?.expected_answer || `A complete answer should address ${(t.curriculumObjective || t.curriculumTopic).toLowerCase()}, explaining key implementation steps and trade-offs.`,
       followUpQuestion: followUpTurn ? followUpTurn.question : undefined,
       followUpAnswer: followUpTurn ? (followUpTurn.answer || "[No follow-up answer]") : undefined,
       conceptsDemonstrated: t.evaluation?.concepts_demonstrated || [],

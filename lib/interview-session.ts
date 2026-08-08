@@ -1,10 +1,13 @@
 import { CandidateProfile } from "@/types/profile";
+import { CurriculumDay } from "@/lib/interview-controller";
 
 export type EvaluationVerdict =
   | "correct"
   | "partially_correct"
   | "incorrect"
   | "not_attempted";
+
+export type AnswerEvaluationLabel = EvaluationVerdict;
 
 export interface EvaluationResult {
   verdict: EvaluationVerdict;
@@ -59,12 +62,7 @@ export interface InterviewFeedbackReport {
 export interface InterviewSession {
   sessionId: string;
   candidate: CandidateProfile;
-  completedDays: Array<{
-    day: number;
-    title: string;
-    objectives: string[];
-    tools: string[];
-  }>;
+  completedDays: CurriculumDay[];
   turns: InterviewTurn[];
   mainQuestionNumber: number;
   totalPlannedMainQuestions: number;

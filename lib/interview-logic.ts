@@ -193,7 +193,7 @@ export async function generateNextTurn(
     const parentMainTurn = history.find(
       (t) => t.type === "MAIN_QUESTION" && t.mainQuestionNumber === currentMainQNum
     );
-    const dayNum = parentMainTurn ? parentMainTurn.day : completedDays[0].day;
+    const dayNum = parentMainTurn ? parentMainTurn.curriculumDay : completedDays[0].day;
     targetDay =
       completedDays.find((d) => d.day === dayNum) || completedDays[0];
   } else {
@@ -213,7 +213,7 @@ export async function generateNextTurn(
       const ai = new GoogleGenAI({ apiKey });
 
       let prompt = "";
-      if (nextType === "FOLLOW-UP" || nextType === "FOLLOW_UP") {
+      if (nextType === "FOLLOW_UP") {
         const lastTurn = history[history.length - 1];
         prompt = `
 You are Intervu AI, a senior technical interviewer conducting an adaptive technical interview.
@@ -334,9 +334,9 @@ export async function generateFeedbackReport(
     .map((h) => ({
       q: h.question,
       a: h.answer,
-      label: h.evaluation?.label,
-      topic: h.topic,
-      day: h.day,
+      label: h.evaluation?.verdict,
+      topic: h.curriculumTopic,
+      day: h.curriculumDay,
     }));
 
   const correctTurns = evaluations.filter((e) => e.label === "correct");
@@ -367,7 +367,7 @@ export async function generateFeedbackReport(
 
   return {
     summary: `${candidate.member.name} completed an adaptive technical assessment covering ${mainQCount} main questions across ${
-      new Set(history.map((h) => h.day)).size
+      new Set(history.map((h) => h.curriculumDay)).size
     } curriculum days. Correct responses: ${correctTurns.length}, Areas needing review: ${gapTurns.length}.`,
     strengths: strengthsList.slice(0, 4),
     gaps: gapsList.slice(0, 4),

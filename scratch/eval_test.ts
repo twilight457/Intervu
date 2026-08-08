@@ -1,4 +1,5 @@
 import { evaluateCandidateAnswer } from '../lib/interview-evaluator';
+import { CandidateProfile } from '../types/profile';
 
 async function runTests() {
   const dayInfo = {
@@ -8,9 +9,21 @@ async function runTests() {
     tools: ['Ragas', 'DeepEval', 'Python']
   };
 
-  const candidate = {
-    member: { id: 'CAND-001', name: 'Sarah', jobRole: 'AI Engineer' },
-    missions: []
+  const candidate: CandidateProfile = {
+    member: {
+      id: 'CAND-001',
+      name: 'Sarah',
+      jobRole: 'AI Engineer',
+      yearsExperience: 3,
+      education: 'B.S. Computer Science',
+      status: 'active'
+    },
+    missions: [],
+    signals: {
+      commitDays: 5,
+      missionsCompleted: 2,
+      missionsFirstTry: 2
+    }
   };
 
   const questionMulti = "What are embeddings, why are they useful for semantic search, and how are they stored for efficient retrieval?";
