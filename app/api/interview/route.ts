@@ -14,6 +14,37 @@ import {
 } from "@/lib/interview-controller";
 import { CandidateProfile } from "@/types/profile";
 
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const sessionId = searchParams.get("sessionId");
+
+  if (!sessionId) {
+    return NextResponse.json(
+      { error: "Missing required parameter: sessionId" },
+      { status: 400 }
+    );
+  }
+
+  const session = getSession(sessionId);
+  if (!session) {
+    return NextResponse.json(
+      { error: `Session not found for sessionId: ${sessionId}` },
+      { status: 404 }
+    );
+  }
+
+  if (!session.feedback) {
+    // If feedback has not been generated yet, finalize session
+    const feedback = finalizeSession(session);
+    return NextResponse.json({ feedback, candidate: session.candidate });
+  }
+
+  return NextResponse.json({
+    feedback: session.feedback,
+    candidate: session.candidate,
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -29,7 +60,7 @@ export async function POST(request: Request) {
     let session = getSession(sessionId);
 
     // 1. START INTERVIEW SESSION (First Request)
-    if (!session || (candidate && (!message || message.trim() === "") && action !== "skip")) {
+    if (!session || (candidate && (!message || message.trim() === "") && action !== "skip" && action !== "end_early")) {
       const activeCandidate: CandidateProfile = candidate || body;
       if (!activeCandidate || !activeCandidate.member) {
         return NextResponse.json(
@@ -39,9 +70,7 @@ export async function POST(request: Request) {
       }
 
       const completedDays = getCandidateCompletedDays(activeCandidate);
-
-      // Select a target number of main questions between 8 and 12 randomly for each new interview session
-      const totalPlanned = Math.floor(Math.random() * 5) + 8;
+      const totalPlanned = Math.floor(Math.random() * 5) + 8; // 8, 9, 10, 11, or 12
 
       session = {
         sessionId,
@@ -55,7 +84,6 @@ export async function POST(request: Request) {
         createdAt: Date.now(),
       };
 
-      // Generate Main Question 1
       const turn1Decision = await determineNextTurn(
         activeCandidate,
         completedDays,
@@ -94,7 +122,17 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2. CHECK IF SESSION IS ALREADY DONE
+    // 2. CHECK IF ACTION IS END EARLY
+    if (action === "end_early") {
+      const feedback = finalizeSession(session);
+      return NextResponse.json({
+        reply: "Interview ended early upon candidate request.",
+        done: true,
+        feedback,
+      });
+    }
+
+    // 3. CHECK IF SESSION IS ALREADY DONE
     if (session.isDone) {
       return NextResponse.json({
         reply: "Interview has already been completed.",
@@ -103,7 +141,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // 3. STAGE 1: ANSWER EVALUATOR
+    // 4. STAGE 1: ANSWER EVALUATOR
     const currentTurn = session.turns[session.turns.length - 1];
     const isSkipped = action === "skip";
     const answerText = isSkipped ? "[Skipped by candidate]" : message || "";
@@ -128,7 +166,6 @@ export async function POST(request: Request) {
 
       currentTurn.evaluation = evalResult;
 
-      // If evaluating a follow-up answer, resolve parent main question's overall evaluation
       if (currentTurn.type === "FOLLOW_UP") {
         const parentTurn = session.turns.find(
           (t) =>
@@ -160,7 +197,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. STAGE 2 & 3: INTERVIEW CONTROLLER & QUESTION GENERATION
+    // 5. STAGE 2 & 3: INTERVIEW CONTROLLER & QUESTION GENERATION
     const nextDecision = await determineNextTurn(
       session.candidate,
       session.completedDays,
@@ -172,94 +209,11 @@ export async function POST(request: Request) {
     );
 
     if (nextDecision.isCompleted) {
-      session.isDone = true;
-
-      // Compile comprehensive question-level evaluation report data
-      const mainQuestionTurns = session.turns.filter(
-        (t) => t.type === "MAIN_QUESTION"
-      );
-
-      const questionEvaluations: QuestionEvaluationReportItem[] = mainQuestionTurns.map((t) => {
-        const followUpTurn = session.turns.find(
-          (ft) => ft.type === "FOLLOW_UP" && ft.mainQuestionNumber === t.mainQuestionNumber
-        );
-
-        return {
-          mainQuestionNumber: t.mainQuestionNumber,
-          question: t.question,
-          curriculumDay: t.curriculumDay,
-          curriculumTopic: t.curriculumTopic,
-          curriculumObjective: t.curriculumObjective,
-          candidateAnswer: t.answer || "[No answer provided]",
-          finalVerdict: t.evaluation?.verdict || "not_attempted",
-          evaluationReasoning: t.evaluation?.reasoning || "No detailed evaluation recorded.",
-          expectedAnswer: t.evaluation?.expected_answer || "Model response based on curriculum objective.",
-          followUpQuestion: followUpTurn ? followUpTurn.question : undefined,
-          followUpAnswer: followUpTurn ? (followUpTurn.answer || "[No follow-up answer]") : undefined,
-          conceptsDemonstrated: t.evaluation?.concepts_demonstrated || [],
-          conceptsMissing: t.evaluation?.concepts_missing || [],
-        };
-      });
-
-      const correctCount = questionEvaluations.filter(
-        (q) => q.finalVerdict === "correct"
-      ).length;
-
-      const partiallyCount = questionEvaluations.filter(
-        (q) => q.finalVerdict === "partially_correct"
-      ).length;
-
-      const overallScore = Math.round(
-        ((correctCount + partiallyCount * 0.5) / Math.max(questionEvaluations.length, 1)) * 100
-      );
-
-      const strengths = Array.from(
-        new Set(
-          questionEvaluations
-            .filter((q) => q.finalVerdict === "correct")
-            .map((q) => `Demonstrated clear technical mastery of ${q.curriculumTopic} (Day ${q.curriculumDay}).`)
-        )
-      );
-
-      if (strengths.length === 0) {
-        strengths.push("Attempted technical assessment questions actively.");
-      }
-
-      const gaps = Array.from(
-        new Set(
-          questionEvaluations
-            .filter((q) => q.finalVerdict !== "correct")
-            .map((q) => `Requires review in ${q.curriculumTopic} (Day ${q.curriculumDay}) - ${q.evaluationReasoning}`)
-        )
-      );
-
-      if (gaps.length === 0) {
-        gaps.push("No major gaps identified during this assessment.");
-      }
-
-      const nextReview = Array.from(
-        new Set(
-          questionEvaluations
-            .filter((q) => q.finalVerdict !== "correct")
-            .map((q) => `Day ${q.curriculumDay} · ${q.curriculumTopic}`)
-        )
-      );
-
-      session.feedback = {
-        summary: `Technical assessment across ${mainQuestionTurns.length} questions.`,
-        strengths: strengths.slice(0, 4),
-        gaps: gaps.slice(0, 4),
-        next: nextReview.slice(0, 4),
-        overallScore,
-        questionEvaluations,
-      };
-
-      saveSession(session);
-
+      const feedback = finalizeSession(session);
       return NextResponse.json({
         reply: nextDecision.interviewerText,
         done: true,
-        feedback: session.feedback,
+        feedback,
       });
     }
 
@@ -315,4 +269,125 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+function finalizeSession(session: InterviewSession): InterviewFeedbackReport {
+  const totalPlanned = session.totalPlannedMainQuestions || 8;
+  const completedDays = session.completedDays;
+
+  const existingMainTurns = session.turns.filter((t) => t.type === "MAIN_QUESTION");
+  const existingNumbers = new Set(existingMainTurns.map((t) => t.mainQuestionNumber));
+
+  // Fill in remaining planned main questions up to totalPlanned as NOT_ATTEMPTED
+  for (let qNum = 1; qNum <= totalPlanned; qNum++) {
+    if (!existingNumbers.has(qNum)) {
+      const dayIndex = (qNum - 1) % completedDays.length;
+      const dayObj = completedDays[dayIndex] || completedDays[0];
+      const objectives = dayObj.objectives || [dayObj.title];
+      const objective = objectives[(qNum - 1) % objectives.length];
+
+      const notAttemptedTurn: InterviewTurn = {
+        id: `main-${qNum}`,
+        type: "MAIN_QUESTION",
+        mainQuestionNumber: qNum,
+        curriculumDay: dayObj.day,
+        curriculumTopic: dayObj.title,
+        curriculumObjective: objective,
+        question: `Technical assessment regarding ${objective}`,
+        answer: "[Not attempted - Interview ended early]",
+        evaluation: {
+          verdict: "not_attempted",
+          reasoning: "Question was not attempted because the candidate ended the interview early.",
+          expected_answer: `A complete answer should address ${objective.toLowerCase()} explaining key implementation steps, trade-offs, and error handling criteria.`,
+          concepts_demonstrated: [],
+          concepts_missing: [objective],
+          factual_errors: [],
+          should_follow_up: false,
+        },
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      session.turns.push(notAttemptedTurn);
+    }
+  }
+
+  // Compile exactly totalPlanned question-level report items
+  const mainQuestionTurns = session.turns.filter((t) => t.type === "MAIN_QUESTION");
+  mainQuestionTurns.sort((a, b) => a.mainQuestionNumber - b.mainQuestionNumber);
+
+  const questionEvaluations: QuestionEvaluationReportItem[] = mainQuestionTurns.map((t) => {
+    const followUpTurn = session.turns.find(
+      (ft) => ft.type === "FOLLOW_UP" && ft.mainQuestionNumber === t.mainQuestionNumber
+    );
+
+    return {
+      mainQuestionNumber: t.mainQuestionNumber,
+      question: t.question,
+      curriculumDay: t.curriculumDay,
+      curriculumTopic: t.curriculumTopic,
+      curriculumObjective: t.curriculumObjective,
+      candidateAnswer: t.answer || "[No answer provided]",
+      finalVerdict: t.evaluation?.verdict || "not_attempted",
+      evaluationReasoning: t.evaluation?.reasoning || "Question was not attempted.",
+      expectedAnswer: t.evaluation?.expected_answer || "Model response based on curriculum objective.",
+      followUpQuestion: followUpTurn ? followUpTurn.question : undefined,
+      followUpAnswer: followUpTurn ? (followUpTurn.answer || "[No follow-up answer]") : undefined,
+      conceptsDemonstrated: t.evaluation?.concepts_demonstrated || [],
+      conceptsMissing: t.evaluation?.concepts_missing || [],
+    };
+  });
+
+  const correctCount = questionEvaluations.filter((q) => q.finalVerdict === "correct").length;
+  const partiallyCount = questionEvaluations.filter((q) => q.finalVerdict === "partially_correct").length;
+
+  const overallScore = Math.round(
+    ((correctCount + partiallyCount * 0.5) / Math.max(questionEvaluations.length, 1)) * 100
+  );
+
+  const strengths = Array.from(
+    new Set(
+      questionEvaluations
+        .filter((q) => q.finalVerdict === "correct")
+        .map((q) => `Demonstrated clear technical mastery of ${q.curriculumTopic} (Day ${q.curriculumDay}).`)
+    )
+  );
+
+  if (strengths.length === 0) {
+    strengths.push("Attempted technical assessment questions actively.");
+  }
+
+  const gaps = Array.from(
+    new Set(
+      questionEvaluations
+        .filter((q) => q.finalVerdict !== "correct")
+        .map((q) => `Requires review in ${q.curriculumTopic} (Day ${q.curriculumDay}) - ${q.evaluationReasoning}`)
+    )
+  );
+
+  if (gaps.length === 0) {
+    gaps.push("No major gaps identified during this assessment.");
+  }
+
+  const nextReview = Array.from(
+    new Set(
+      questionEvaluations
+        .filter((q) => q.finalVerdict !== "correct")
+        .map((q) => `Day ${q.curriculumDay} · ${q.curriculumTopic}`)
+    )
+  );
+
+  const feedback: InterviewFeedbackReport = {
+    summary: `Technical assessment across ${questionEvaluations.length} questions.`,
+    strengths: strengths.slice(0, 4),
+    gaps: gaps.slice(0, 4),
+    next: nextReview.slice(0, 4),
+    overallScore,
+    questionEvaluations,
+  };
+
+  session.isDone = true;
+  session.feedback = feedback;
+  saveSession(session);
+
+  return feedback;
 }

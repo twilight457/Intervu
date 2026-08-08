@@ -70,6 +70,9 @@ export default function InterviewPage() {
 
     const sId = `session-${activeCand.member.id}-${Date.now()}`;
     setSessionId(sId);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("intervu_current_session_id", sId);
+    }
     setIsLoaded(true);
   }, []);
 
@@ -165,12 +168,9 @@ export default function InterviewPage() {
 
       if (data.done) {
         setIsEnded(true);
-        if (data.feedback) {
+        if (data.feedback && typeof window !== "undefined") {
           try {
-            localStorage.setItem(
-              "intervu_feedback_report",
-              JSON.stringify(data.feedback)
-            );
+            sessionStorage.setItem(`intervu_report_${sessionId}`, JSON.stringify(data.feedback));
           } catch (e) {
             console.error("Failed to store feedback report:", e);
           }
@@ -255,12 +255,9 @@ export default function InterviewPage() {
 
       if (data.done) {
         setIsEnded(true);
-        if (data.feedback) {
+        if (data.feedback && typeof window !== "undefined") {
           try {
-            localStorage.setItem(
-              "intervu_feedback_report",
-              JSON.stringify(data.feedback)
-            );
+            sessionStorage.setItem(`intervu_report_${sessionId}`, JSON.stringify(data.feedback));
           } catch (e) {
             console.error("Failed to store feedback report:", e);
           }
@@ -318,9 +315,30 @@ export default function InterviewPage() {
     }
   };
 
-  const handleEndInterview = () => {
+  const handleEndInterview = async () => {
     setShowEndDialog(false);
-    router.push("/report");
+    setIsThinking(true);
+
+    try {
+      const res = await fetch("/api/interview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          action: "end_early",
+        }),
+      });
+
+      const data = await res.json();
+      if (data.feedback && typeof window !== "undefined") {
+        sessionStorage.setItem(`intervu_report_${sessionId}`, JSON.stringify(data.feedback));
+      }
+    } catch (err) {
+      console.error("Failed to end interview early:", err);
+    } finally {
+      setIsThinking(false);
+      router.push(`/report?sessionId=${sessionId}`);
+    }
   };
 
   if (!isLoaded) {
@@ -371,7 +389,7 @@ export default function InterviewPage() {
           <div className="flex items-center gap-3 self-start sm:self-center">
             {isEnded ? (
               <Button
-                onClick={() => router.push("/report")}
+                onClick={() => router.push(`/report?sessionId=${sessionId}`)}
                 size="sm"
                 className="h-10 px-4 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs inline-flex items-center justify-center gap-2"
               >
@@ -494,7 +512,7 @@ export default function InterviewPage() {
                 Interview completed! Your technical evaluation report is ready.
               </p>
               <Button
-                onClick={() => router.push("/report")}
+                onClick={() => router.push(`/report?sessionId=${sessionId}`)}
                 size="lg"
                 className="h-11 px-8 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-md inline-flex items-center justify-center gap-2"
               >

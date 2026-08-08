@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   FileCheck,
   CheckCircle2,
@@ -35,30 +35,66 @@ const defaultCandidate = data.candidates[0];
 
 export default function ReportPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [candidate, setCandidate] = useState<CandidateProfile>(defaultCandidate);
   const [report, setReport] = useState<InterviewFeedbackReport | null>(null);
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number>(0);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // Load stored candidate profile
-    const stored = getStoredCandidate();
-    const activeCand = stored || defaultCandidate;
-    setCandidate(activeCand);
+    async function loadSessionReport() {
+      // 1. Determine exact sessionId for this report
+      const querySessionId = searchParams.get("sessionId");
+      const storedSessionId = typeof window !== "undefined" ? sessionStorage.getItem("intervu_current_session_id") : null;
+      const activeSessionId = querySessionId || storedSessionId;
 
-    // Load persisted interview feedback report from localStorage
-    try {
-      const storedReportStr = localStorage.getItem("intervu_feedback_report");
-      if (storedReportStr) {
-        const parsedReport: InterviewFeedbackReport = JSON.parse(storedReportStr);
-        setReport(parsedReport);
+      // 2. Load candidate profile
+      const storedCandidate = getStoredCandidate();
+      const activeCand = storedCandidate || defaultCandidate;
+      setCandidate(activeCand);
+
+      if (!activeSessionId) {
+        setIsLoaded(true);
+        return;
       }
-    } catch (err) {
-      console.error("Failed to load interview feedback report:", err);
+
+      // 3. Check session-scoped storage first
+      try {
+        const cachedReportStr = sessionStorage.getItem(`intervu_report_${activeSessionId}`);
+        if (cachedReportStr) {
+          const parsedReport: InterviewFeedbackReport = JSON.parse(cachedReportStr);
+          setReport(parsedReport);
+          setIsLoaded(true);
+          return;
+        }
+      } catch (e) {
+        console.warn("Session report cache read error:", e);
+      }
+
+      // 4. Fetch session report from API GET /api/interview?sessionId=...
+      try {
+        const res = await fetch(`/api/interview?sessionId=${encodeURIComponent(activeSessionId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.feedback) {
+            setReport(data.feedback);
+            if (data.candidate) {
+              setCandidate(data.candidate);
+            }
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem(`intervu_report_${activeSessionId}`, JSON.stringify(data.feedback));
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load session report from API:", err);
+      } finally {
+        setIsLoaded(true);
+      }
     }
 
-    setIsLoaded(true);
-  }, []);
+    loadSessionReport();
+  }, [searchParams]);
 
   if (!isLoaded) {
     return (
