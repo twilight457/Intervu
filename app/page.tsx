@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { IllustratedAvatar } from "@/components/ui/illustrated-avatar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const data = candidatesDataRaw as CandidatesData;
 const candidatesList: CandidateProfile[] = data.candidates || [];
@@ -49,6 +50,11 @@ export default function LandingPage() {
 
   return (
     <div className="relative min-h-screen flex flex-col justify-center items-center py-12 px-4 sm:px-8 overflow-hidden bg-[#0b0f17] text-slate-100">
+      {/* Absolute Top Right Theme Toggle */}
+      <div className="absolute top-6 right-6 z-20">
+        <ThemeToggle />
+      </div>
+
       {/* Restrained Grid & Background Glow behind Hero */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b12_1px,transparent_1px),linear-gradient(to_bottom,#1e293b12_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_45%_at_50%_15%,#000_70%,transparent_100%)] pointer-events-none" />
       <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#6366f1]/10 blur-[130px] rounded-full pointer-events-none opacity-50" />

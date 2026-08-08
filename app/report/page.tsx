@@ -163,6 +163,11 @@ export default function ReportPage() {
   const selectedQuestion = questions[selectedQuestionIndex] || questions[0];
   const overallScore = report?.overallScore ?? 0;
 
+  // Determine if selected question was never reached (unreached due to early termination)
+  const isUnreachedEarlyTermination =
+    selectedQuestion?.candidateAnswer === "[Not attempted - Interview ended early]" ||
+    selectedQuestion?.evaluationReasoning?.includes("ended early");
+
   return (
     <div className="min-h-screen bg-[#0b0f17] text-slate-100 py-8 px-4 sm:px-6 max-w-5xl mx-auto space-y-8">
       {/* 1. Header & Navigation */}
@@ -289,26 +294,34 @@ export default function ReportPage() {
                 <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
                   Question {selectedQuestion.mainQuestionNumber} of {questions.length}
                 </span>
-                <span className="text-slate-600">&middot;</span>
-                <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                  <BookOpen className="h-3 w-3 text-indigo-400" />
-                  Day {selectedQuestion.curriculumDay} &middot; {selectedQuestion.curriculumTopic}
-                </span>
+
+                {/* Hide Day/Topic label ONLY for unreached questions after early termination */}
+                {!isUnreachedEarlyTermination && (
+                  <>
+                    <span className="text-slate-600">&middot;</span>
+                    <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                      <BookOpen className="h-3 w-3 text-indigo-400" />
+                      Day {selectedQuestion.curriculumDay} &middot; {selectedQuestion.curriculumTopic}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
             <div>{getVerdictBadge(selectedQuestion.finalVerdict)}</div>
           </div>
 
-          {/* Main Question Text */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Main Question
-            </h4>
-            <p className="text-sm sm:text-base font-medium text-slate-100 leading-relaxed bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-              {selectedQuestion.question}
-            </p>
-          </div>
+          {/* Main Question Text (Hidden ONLY for unreached questions after early termination) */}
+          {!isUnreachedEarlyTermination && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Main Question
+              </h4>
+              <p className="text-sm sm:text-base font-medium text-slate-100 leading-relaxed bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                {selectedQuestion.question}
+              </p>
+            </div>
+          )}
 
           {/* Candidate Main Answer */}
           <div className="space-y-2">
@@ -320,8 +333,8 @@ export default function ReportPage() {
             </p>
           </div>
 
-          {/* Expected / Model Answer (Shown ONLY for non-correct responses: PARTIALLY_CORRECT, INCORRECT, NOT_ATTEMPTED) */}
-          {selectedQuestion.finalVerdict !== "correct" && selectedQuestion.expectedAnswer && (
+          {/* Expected / Model Answer (Shown ONLY for reached non-correct questions; Hidden for unreached early termination) */}
+          {!isUnreachedEarlyTermination && selectedQuestion.finalVerdict !== "correct" && selectedQuestion.expectedAnswer && (
             <div className="space-y-2 p-4 rounded-xl bg-amber-950/20 border border-amber-500/30">
               <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
                 <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
@@ -334,7 +347,7 @@ export default function ReportPage() {
           )}
 
           {/* Grouped Follow-Up Section (If follow-up was asked) */}
-          {selectedQuestion.followUpQuestion && (
+          {!isUnreachedEarlyTermination && selectedQuestion.followUpQuestion && (
             <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-500/20 space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold text-indigo-300">
                 <MessageSquare className="h-4 w-4" />

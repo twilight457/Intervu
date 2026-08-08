@@ -161,7 +161,8 @@ export async function POST(request: Request) {
         session.candidate,
         session.turns,
         session.followUpCount,
-        isSkipped
+        isSkipped,
+        currentTurn.curriculumObjective
       );
 
       currentTurn.evaluation = evalResult;
@@ -174,23 +175,18 @@ export async function POST(request: Request) {
         );
 
         if (parentTurn) {
-          if (evalResult.verdict === "correct") {
+          const parentExpected = parentTurn.evaluation?.expected_answer || evalResult.expected_answer;
+          if (evalResult.verdict === "correct" || evalResult.verdict === "partially_correct") {
             parentTurn.evaluation = {
               ...evalResult,
               verdict: "partially_correct",
-              expected_answer: evalResult.expected_answer || parentTurn.evaluation?.expected_answer,
-            };
-          } else if (evalResult.verdict === "partially_correct") {
-            parentTurn.evaluation = {
-              ...evalResult,
-              verdict: "partially_correct",
-              expected_answer: evalResult.expected_answer || parentTurn.evaluation?.expected_answer,
+              expected_answer: parentExpected,
             };
           } else {
             parentTurn.evaluation = {
               ...evalResult,
               verdict: "incorrect",
-              expected_answer: evalResult.expected_answer || parentTurn.evaluation?.expected_answer,
+              expected_answer: parentExpected,
             };
           }
         }
@@ -285,6 +281,7 @@ function finalizeSession(session: InterviewSession): InterviewFeedbackReport {
       const dayObj = completedDays[dayIndex] || completedDays[0];
       const objectives = dayObj.objectives || [dayObj.title];
       const objective = objectives[(qNum - 1) % objectives.length];
+      const tools = dayObj.tools?.join(", ") || "standard tooling";
 
       const notAttemptedTurn: InterviewTurn = {
         id: `main-${qNum}`,
@@ -298,7 +295,7 @@ function finalizeSession(session: InterviewSession): InterviewFeedbackReport {
         evaluation: {
           verdict: "not_attempted",
           reasoning: "Question was not attempted because the candidate ended the interview early.",
-          expected_answer: `A complete answer should address ${objective.toLowerCase()} explaining key implementation steps, trade-offs, and error handling criteria.`,
+          expected_answer: `A complete answer should address ${objective.toLowerCase()} using ${tools}, explaining key implementation steps, trade-offs, and error handling criteria.`,
           concepts_demonstrated: [],
           concepts_missing: [objective],
           factual_errors: [],
@@ -329,7 +326,7 @@ function finalizeSession(session: InterviewSession): InterviewFeedbackReport {
       candidateAnswer: t.answer || "[No answer provided]",
       finalVerdict: t.evaluation?.verdict || "not_attempted",
       evaluationReasoning: t.evaluation?.reasoning || "Question was not attempted.",
-      expectedAnswer: t.evaluation?.expected_answer || "Model response based on curriculum objective.",
+      expectedAnswer: t.evaluation?.expected_answer || `A complete answer should address ${t.curriculumObjective.toLowerCase()}, explaining key implementation steps and trade-offs.`,
       followUpQuestion: followUpTurn ? followUpTurn.question : undefined,
       followUpAnswer: followUpTurn ? (followUpTurn.answer || "[No follow-up answer]") : undefined,
       conceptsDemonstrated: t.evaluation?.concepts_demonstrated || [],

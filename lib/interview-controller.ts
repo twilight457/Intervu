@@ -94,7 +94,7 @@ export async function determineNextTurn(
   totalPlannedMainQuestions: number = 8,
   evalResult?: EvaluationResult
 ): Promise<NextTurnDecision> {
-  const isTurnComplete = !evalResult || !evalResult.should_follow_up;
+  const isTurnComplete = !evalResult || !evalResult.should_follow_up || evalResult.verdict === "not_attempted";
   const isAtOrBeyondPlanned = currentMainQNum >= totalPlannedMainQuestions;
 
   // End interview ONLY when at or beyond planned main questions AND minimum 8 main questions completed
@@ -112,8 +112,11 @@ export async function determineNextTurn(
     };
   }
 
-  // Follow-up allowed ONLY IF evalResult says should_follow_up (requires followUpCount === 0)
-  const shouldFollowUp = evalResult ? evalResult.should_follow_up && followUpCount === 0 : false;
+  // SKIPPED / NOT_ATTEMPTED QUESTIONS MUST NEVER TRIGGER FOLLOW-UPS
+  const shouldFollowUp =
+    evalResult && evalResult.verdict !== "not_attempted"
+      ? evalResult.should_follow_up && followUpCount === 0
+      : false;
 
   let nextType: "MAIN_QUESTION" | "FOLLOW_UP";
   let targetMainQNum: number;
@@ -232,9 +235,7 @@ CRITICAL RULES FOR FOLLOW-UP GENERATION:
    - The candidate's ACTUAL answer ("${lastCandidateAnswer}")
    - The SAME objective ("${selectedObjective}")
 2. DO NOT introduce FastAPI, Ollama, React, or any other tool UNLESS that tool was explicitly part of the parent question ("${parentQuestionText}")!
-3. If candidate expressed uncertainty ("not sure", "I don't know", "dont know"):
-   - Ask a simplified sub-question probing authentication, key parameters, or criteria directly relevant to "${parentQuestionText}".
-4. Output ONLY the interviewer's spoken words (1-2 natural sentences max).
+3. Output ONLY the interviewer's spoken words (1-2 natural sentences max).
 `;
       } else {
         const transIdx = (mainQNum + history.length) % TRANSITION_PHRASES.length;
@@ -251,13 +252,11 @@ CURRICULUM ASSESSED OBJECTIVE:
 REQUESTED QUESTION STYLE: "${targetStyle}"
 
 MAIN QUESTION GENERATION RULES:
-1. Formulate a natural, realistic technical interview question that directly tests the learning objective "${selectedObjective}".
+1. Formulate a unique, natural technical interview question that directly assesses the learning objective "${selectedObjective}" for Day ${dayObj.day} (${dayObj.title}).
 2. Use requested style "${targetStyle}".
-3. Transition phrase prefix for this question: "${transitionPref}" (Do NOT use "Moving on to our next technical topic").
-4. Do NOT concatenate strings like "Why would you choose X when implementing [raw objective]".
-5. Do NOT make a tool the subject of the question unless the selected objective is specifically about that tool.
-6. NEVER display internal metadata (do NOT say "Main Question", "Day 1", "Topic: ...").
-7. Output ONLY the interviewer's spoken question text (1-2 grammatically complete, natural sentences).
+3. Transition phrase prefix for this question: "${transitionPref}".
+4. Do NOT reuse questions from previous turns or previous curriculum days!
+5. Output ONLY the interviewer's spoken question text (1-2 grammatically complete, natural sentences).
 `;
       }
 
@@ -301,79 +300,33 @@ function getFallbackInterviewerText(
   if (type === "FOLLOW_UP") {
     const parentTurn = history.find((t) => t.type === "MAIN_QUESTION" && t.mainQuestionNumber === mainQNum);
     const parentQText = parentTurn ? parentTurn.question : "the previous main question";
-    const qLower = parentQText.toLowerCase();
-    const objLower = selectedObjective.toLowerCase();
-
-    if (evalResult?.verdict === "not_attempted") {
-      if (
-        qLower.includes("secure") ||
-        qLower.includes("unauthorized") ||
-        qLower.includes("access") ||
-        objLower.includes("secure") ||
-        objLower.includes("auth")
-      ) {
-        return `That's okay. What authentication or authorization mechanism (such as API keys, OAuth, or JWT) would you use to prevent unauthorized users from accessing the API?`;
-      }
-
-      if (
-        qLower.includes("evaluate") ||
-        qLower.includes("metrics") ||
-        qLower.includes("scenario") ||
-        objLower.includes("evaluate")
-      ) {
-        return `That's okay. What kinds of real-world scenarios or testing prompts would you create to verify whether the chatbot is responding correctly?`;
-      }
-
-      if (
-        (qLower.includes("fastapi") || objLower.includes("fastapi")) &&
-        !qLower.includes("secure")
-      ) {
-        return `That's okay. What is one key feature of FastAPI that makes it suitable for asynchronous web backends?`;
-      }
-
-      return `That's okay. To help break that down simply: what is the very first step or basic concept involved in addressing that requirement?`;
-    }
 
     const demonstrated = evalResult?.concepts_demonstrated?.[0];
     if (demonstrated) {
-      return `You mentioned ${demonstrated}. Building on that, how would you address the remaining requirements for that task?`;
+      return `You mentioned ${demonstrated}. Building on that, how would you address the remaining requirements for ${selectedObjective.toLowerCase()}?`;
     }
 
-    return `To break that down further, what specific step or criteria would you focus on first?`;
+    return `To break that down further, what specific step or criteria would you focus on first when addressing ${selectedObjective.toLowerCase()}?`;
   }
 
   const transIdx = (mainQNum + history.length) % TRANSITION_PHRASES.length;
   const transition = history.length > 0 ? TRANSITION_PHRASES[transIdx] : "Welcome to your technical interview! ";
-  const objLower = selectedObjective.toLowerCase();
+  const cleanObj = selectedObjective.replace(/\.$/, "").trim();
 
-  // Smart grammatical main question generator with rotated transition phrases
-  if (objLower.includes("secure") || objLower.includes("auth") || objLower.includes("unauthorized")) {
-    return `${transition}What are the key technical steps and considerations involved when securing chatbot APIs against unauthorized access?`;
-  }
+  // Dynamic question template matching selectedObjective and style to ensure 100% unique question text per day
+  const styleTemplates: Record<string, string> = {
+    conceptual_explanation: `How would you explain the core technical principles behind ${cleanObj.toLowerCase()}?`,
+    why_motivation: `Why is it important to ${cleanObj.toLowerCase()} when engineering AI systems?`,
+    how_it_works: `How do you implement and verify the process to ${cleanObj.toLowerCase()}?`,
+    compare_contrast: `What are the key trade-offs and considerations when you ${cleanObj.toLowerCase()} compared to alternative methods?`,
+    troubleshooting_debugging: `What edge cases or errors do you monitor when you ${cleanObj.toLowerCase()}, and how do you debug them?`,
+    design_tradeoffs: `What architecture decisions do you evaluate when working to ${cleanObj.toLowerCase()}?`,
+    system_architecture: `How do you structure backend components when you ${cleanObj.toLowerCase()}?`,
+    scenario_what_if: `What happens if invalid data or high concurrency occurs while trying to ${cleanObj.toLowerCase()}?`,
+    explain_built_system: `In a production system you worked on, how did you handle ${cleanObj.toLowerCase()}?`,
+    practical_implementation: `What key technical steps and best practices do you follow to ${cleanObj.toLowerCase()}?`,
+  };
 
-  if (objLower.includes("evaluate") || objLower.includes("scenario") || objLower.includes("benchmark")) {
-    return `${transition}How would you evaluate a system using realistic scenarios, and what specific metrics or behaviors would you measure when assessing performance?`;
-  }
-
-  if (objLower.includes("fastapi") || objLower.includes("backend") || objLower.includes("endpoint")) {
-    return `${transition}Why would you choose FastAPI for building asynchronous backend APIs, and how do you structure its routing and endpoints?`;
-  }
-
-  if (objLower.includes("embedding") || objLower.includes("vector")) {
-    return `${transition}What primary problem do text embeddings solve in a semantic retrieval system, and how do vector databases index them?`;
-  }
-
-  if (objLower.includes("rag") || objLower.includes("retrieval")) {
-    return `${transition}When building an end-to-end RAG pipeline, how do you handle document chunking and context retrieval to prevent hallucinations?`;
-  }
-
-  if (objLower.includes("agent") || objLower.includes("function") || objLower.includes("tool")) {
-    return `${transition}What key trade-offs do you evaluate when implementing AI function calling and tool execution in a multi-step agent workflow?`;
-  }
-
-  if (objLower.includes("python") || objLower.includes("environment") || objLower.includes("venv")) {
-    return `${transition}Why is setting up an isolated virtual environment (venv) essential when starting a new Python project?`;
-  }
-
-  return `${transition}What key technical steps and considerations are involved when you ${selectedObjective.toLowerCase()}?`;
+  const selectedQuestionText = styleTemplates[style] || styleTemplates.practical_implementation;
+  return `${transition}${selectedQuestionText}`;
 }

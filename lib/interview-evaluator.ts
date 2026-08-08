@@ -20,7 +20,7 @@ export function checkUncertainty(text: string): boolean {
     .replace(/\s+/g, " ")
     .trim();
 
-  if (cleaned === "" || cleaned === "skipped by candidate") return true;
+  if (cleaned === "" || cleaned === "skipped by candidate" || cleaned === "[skipped by candidate]") return true;
 
   const uncertaintyPhrases = [
     "dont know",
@@ -47,7 +47,6 @@ export function checkUncertainty(text: string): boolean {
 
   if (!isMatch) return false;
 
-  // Check if candidate also included substantive technical explanation
   const words = cleaned.split(" ");
   const techTerms = [
     "python", "venv", "virtualenv", "pip", "embedding", "vector", "cosine",
@@ -60,49 +59,37 @@ export function checkUncertainty(text: string): boolean {
 }
 
 /**
- * STAGE 1: ANSWER EVALUATOR
+ * STAGE 1: ANSWER EVALUATOR ENGINE
  */
 export async function evaluateCandidateAnswer(
   currentQuestion: string,
   candidateAnswer: string,
   dayInfo: CurriculumDayInfo,
   candidate: CandidateProfile,
-  history: InterviewTurn[],
-  followUpCount: number,
-  isSkipped: boolean = false
+  history: InterviewTurn[] = [],
+  followUpCount: number = 0,
+  isSkipped: boolean = false,
+  curriculumObjective?: string
 ): Promise<EvaluationResult> {
-  const trimmed = (candidateAnswer || "").trim();
-  const defaultExpected = generateDefaultExpectedAnswer(currentQuestion, dayInfo);
+  const trimmed = candidateAnswer ? candidateAnswer.trim() : "";
+  const isExplicitSkip = isSkipped || checkUncertainty(trimmed);
+  const targetObjective = curriculumObjective || dayInfo.objectives?.[0] || dayInfo.title;
 
-  // 1. SKIPPED OR EMPTY ANSWER -> not_attempted
-  if (isSkipped || trimmed === "" || trimmed.toLowerCase() === "[skipped by candidate]") {
+  const defaultExpected = generateDefaultExpectedAnswer(currentQuestion, dayInfo, targetObjective);
+
+  // 1. Explicit uncertainty / skip rule (SKIPPED QUESTIONS MUST NEVER TRIGGER FOLLOW-UPS)
+  if (isExplicitSkip) {
     return {
       verdict: "not_attempted",
-      reasoning: "Candidate explicitly skipped the question or submitted no response.",
+      reasoning: "Candidate skipped or indicated uncertainty for this question.",
+      expected_answer: defaultExpected,
       concepts_demonstrated: [],
-      concepts_missing: dayInfo.objectives || [dayInfo.title],
+      concepts_missing: [targetObjective],
       factual_errors: [],
       should_follow_up: false,
-      expected_answer: defaultExpected,
     };
   }
 
-  const isUncertain = checkUncertainty(trimmed);
-
-  // 2. Explicit "I don't know" / "I'm not sure" -> not_attempted
-  if (isUncertain) {
-    return {
-      verdict: "not_attempted",
-      reasoning: "Candidate expressed uncertainty without technical explanation.",
-      concepts_demonstrated: [],
-      concepts_missing: dayInfo.objectives || [dayInfo.title],
-      factual_errors: [],
-      should_follow_up: followUpCount === 0,
-      expected_answer: defaultExpected,
-    };
-  }
-
-  // 3. Gemini AI Rigorous Evaluation Engine
   const apiKey =
     process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
@@ -111,31 +98,35 @@ export async function evaluateCandidateAnswer(
       const ai = new GoogleGenAI({ apiKey });
 
       const prompt = `
-You are Stage 1: Technical Answer Evaluator for an AI engineering interview.
+You are a strict senior technical interviewer evaluating a candidate's answer.
 
-EVALUATION PROCEDURE:
-1. Identify the key technical requirements that a satisfactory answer MUST address based on:
-   - Question Asked: "${currentQuestion}"
-   - Curriculum Objectives: ${dayInfo.objectives?.join("; ") || dayInfo.title}
-   - Topic Context: Day ${dayInfo.day} - ${dayInfo.title}
-2. Evaluate Candidate's Answer: "${trimmed}" strictly against those specific requirements.
-3. Formulate a concise model "expected_answer" (2-3 sentences max) explaining the key concepts the candidate was expected to demonstrate, based strictly on the curriculum objective.
+EXACT MAIN QUESTION ASKED:
+"${currentQuestion}"
 
-CLASSIFICATION RULES:
-- "correct": The answer demonstrates required technical knowledge AND sufficiently addresses ALL major components of the question asked.
-- "partially_correct": The answer demonstrates some relevant knowledge or addresses ONLY ONE part of a multi-part question, BUT is incomplete or vague.
-- "incorrect": The answer is wrong, irrelevant, too vague to demonstrate knowledge (e.g. "I would test it", "by testing it against the platform"), or fails to answer what was asked.
-- "not_attempted": The candidate explicitly skipped or expressed complete uncertainty ("dont know", "not sure").
+CURRICULUM CONTEXT:
+- Day ${dayInfo.day}: ${dayInfo.title}
+- Target Objective: "${targetObjective}"
+- Relevant Curriculum Content: ${dayInfo.objectives?.join("; ") || dayInfo.title}
 
-Return ONLY JSON matching this schema:
+CANDIDATE ANSWER TO EVALUATE:
+"${trimmed}"
+
+EVALUATION INSTRUCTIONS:
+1. FIRST, identify the key technical concepts required to answer "${currentQuestion}" based strictly on Target Objective "${targetObjective}".
+2. DETERMINE VERDICT:
+   - "correct": Candidate answered the substance of what was asked accurately.
+   - "partially_correct": Candidate demonstrated relevant knowledge or answered part of a multi-part question, but missed key required elements or was too vague.
+   - "incorrect": Answer is wrong, irrelevant, or too generic (e.g., "by testing it").
+   - "not_attempted": Explicit skip or uncertainty.
+3. EXPECTED ANSWER: Write a concise model answer (1-2 sentences) explaining the key concepts the candidate was expected to demonstrate based strictly on "${targetObjective}".
+4. OUTPUT FORMAT: Return ONLY valid JSON:
 {
   "verdict": "correct" | "partially_correct" | "incorrect" | "not_attempted",
-  "reasoning": "Detailed technical justification explaining why the answer satisfies or fails the question's specific requirements",
-  "expected_answer": "Concise model response addressing the question requirements based on curriculum objectives",
+  "reasoning": "Concise feedback explaining what was demonstrated, missing, or incorrect.",
+  "expected_answer": "Concise model answer based strictly on target objective.",
   "concepts_demonstrated": ["concept1"],
   "concepts_missing": ["concept2"],
-  "factual_errors": [],
-  "should_follow_up": boolean
+  "factual_errors": []
 }
 `;
 
@@ -144,8 +135,8 @@ Return ONLY JSON matching this schema:
         contents: prompt,
       });
 
-      const text = response.text?.trim() || "";
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const text = response.text?.trim();
+      const jsonMatch = text?.match(/\{[\s\S]*\}/);
 
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
@@ -158,9 +149,9 @@ Return ONLY JSON matching this schema:
           ? parsed.verdict
           : "partially_correct";
 
+        // Skipped / not_attempted must NEVER follow up
         const shouldFollowUp =
-          (verdict === "partially_correct" || verdict === "not_attempted") &&
-          followUpCount === 0;
+          verdict === "partially_correct" && followUpCount === 0;
 
         return {
           verdict,
@@ -178,13 +169,16 @@ Return ONLY JSON matching this schema:
   }
 
   // 4. Fallback Requirement Evaluator
-  return fallbackEvaluate(currentQuestion, trimmed, dayInfo, followUpCount, defaultExpected);
+  return fallbackEvaluate(currentQuestion, trimmed, dayInfo, followUpCount, defaultExpected, targetObjective);
 }
 
-function generateDefaultExpectedAnswer(question: string, dayInfo: CurriculumDayInfo): string {
-  const obj = dayInfo.objectives?.[0] || dayInfo.title;
+function generateDefaultExpectedAnswer(
+  question: string,
+  dayInfo: CurriculumDayInfo,
+  targetObjective: string
+): string {
   const tools = dayInfo.tools?.join(", ") || "standard tooling";
-  return `A complete answer should address ${obj.toLowerCase()} using ${tools}, explaining key implementation steps, trade-offs, and error handling criteria.`;
+  return `A complete answer should address ${targetObjective.toLowerCase()} using ${tools}, explaining key implementation steps, trade-offs, and error handling criteria.`;
 }
 
 /**
@@ -195,7 +189,8 @@ function fallbackEvaluate(
   answer: string,
   dayInfo: CurriculumDayInfo,
   followUpCount: number,
-  defaultExpected: string
+  defaultExpected: string,
+  targetObjective: string
 ): EvaluationResult {
   const qLower = question.toLowerCase();
   const aLower = answer.toLowerCase();
@@ -224,7 +219,7 @@ function fallbackEvaluate(
         reasoning: "Answer is too vague or generic to demonstrate technical knowledge of the question requirements.",
         expected_answer: defaultExpected,
         concepts_demonstrated: [],
-        concepts_missing: dayInfo.objectives || [dayInfo.title],
+        concepts_missing: [targetObjective],
         factual_errors: [],
         should_follow_up: false,
       };
@@ -235,7 +230,7 @@ function fallbackEvaluate(
       reasoning: "Answer addresses a general aspect of the question but misses specific technical implementation details and metrics.",
       expected_answer: defaultExpected,
       concepts_demonstrated: matchedTech,
-      concepts_missing: dayInfo.objectives || [dayInfo.title],
+      concepts_missing: [targetObjective],
       factual_errors: [],
       should_follow_up: followUpCount === 0,
     };
@@ -249,7 +244,7 @@ function fallbackEvaluate(
       reasoning: "Answer addresses part of the question but fails to cover all required technical components.",
       expected_answer: defaultExpected,
       concepts_demonstrated: matchedTech,
-      concepts_missing: dayInfo.objectives || [dayInfo.title],
+      concepts_missing: [targetObjective],
       factual_errors: [],
       should_follow_up: followUpCount === 0,
     };
@@ -259,7 +254,7 @@ function fallbackEvaluate(
     verdict: "correct",
     reasoning: "Answer sufficiently demonstrates technical knowledge and addresses the core requirements of the question.",
     expected_answer: defaultExpected,
-    concepts_demonstrated: matchedTech.length > 0 ? matchedTech : [dayInfo.title],
+    concepts_demonstrated: matchedTech,
     concepts_missing: [],
     factual_errors: [],
     should_follow_up: false,
