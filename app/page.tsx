@@ -55,8 +55,8 @@ export default function LandingPage() {
         <ThemeToggle />
       </div>
 
-      {/* Restrained Grid & Background Glow behind Hero */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b12_1px,transparent_1px),linear-gradient(to_bottom,#1e293b12_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_45%_at_50%_15%,#000_70%,transparent_100%)] pointer-events-none" />
+      {/* Restrained Theme-Aware Grid Pattern & Background Glow */}
+      <div className="absolute inset-0 bg-grid-pattern pointer-events-none" />
       <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#6366f1]/10 blur-[130px] rounded-full pointer-events-none opacity-50" />
 
       <div className="max-w-7xl mx-auto w-full space-y-10 relative z-10 my-auto text-center pb-24">

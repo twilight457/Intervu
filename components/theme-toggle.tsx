@@ -5,14 +5,15 @@ import { Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem("intervu_theme") as "dark" | "light" | null;
-    const initialTheme = stored || "dark";
+    const initialTheme = stored || "light";
     setTheme(initialTheme);
+
     if (initialTheme === "light") {
       document.documentElement.classList.add("light");
     } else {
