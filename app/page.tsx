@@ -73,7 +73,7 @@ export default function LandingPage() {
             Choose your learning profile to begin your personalized AI interview.
           </p>
 
-          {/* Search Bar - Perfectly aligned icon and placeholder text */}
+          {/* Search Bar */}
           <div className="pt-2 max-w-md mx-auto relative flex items-center">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 shrink-0 pointer-events-none z-10" />
             <Input
@@ -167,12 +167,6 @@ export default function LandingPage() {
 
                     <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
                       <span>{commitDays} commit days</span>
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] py-0 px-1.5 h-4 border-slate-800 text-slate-400 bg-slate-900/90 font-medium"
-                      >
-                        {candidate.member.status}
-                      </Badge>
                     </div>
                   </div>
                 </CardContent>
@@ -203,11 +197,11 @@ export default function LandingPage() {
 
           <Button
             onClick={handleContinue}
-            size="default"
-            className="h-10 px-6 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-500/20 inline-flex items-center justify-center gap-2"
+            size="sm"
+            className="h-10 px-5 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-all flex items-center gap-2"
           >
             <span>Continue to Dashboard</span>
-            <ArrowRight className="h-4 w-4 shrink-0" />
+            <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
       )}

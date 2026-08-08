@@ -4,6 +4,8 @@ import {
   saveSession,
   InterviewSession,
   InterviewTurn,
+  QuestionEvaluationReportItem,
+  InterviewFeedbackReport,
 } from "@/lib/interview-session";
 import { evaluateCandidateAnswer } from "@/lib/interview-evaluator";
 import {
@@ -38,8 +40,8 @@ export async function POST(request: Request) {
 
       const completedDays = getCandidateCompletedDays(activeCandidate);
 
-      // Determine dynamic planned main questions (e.g. between 8 and min(10, completedDays.length * 2))
-      const totalPlanned = Math.max(8, Math.min(10, completedDays.length * 2));
+      // Select a target number of main questions between 8 and 12 randomly for each new interview session
+      const totalPlanned = Math.floor(Math.random() * 5) + 8;
 
       session = {
         sessionId,
@@ -126,7 +128,7 @@ export async function POST(request: Request) {
 
       currentTurn.evaluation = evalResult;
 
-      // If evaluating a follow-up answer, resolve parent main question evaluation
+      // If evaluating a follow-up answer, resolve parent main question's overall evaluation
       if (currentTurn.type === "FOLLOW_UP") {
         const parentTurn = session.turns.find(
           (t) =>
@@ -139,16 +141,19 @@ export async function POST(request: Request) {
             parentTurn.evaluation = {
               ...evalResult,
               verdict: "partially_correct",
+              expected_answer: evalResult.expected_answer || parentTurn.evaluation?.expected_answer,
             };
           } else if (evalResult.verdict === "partially_correct") {
             parentTurn.evaluation = {
               ...evalResult,
               verdict: "partially_correct",
+              expected_answer: evalResult.expected_answer || parentTurn.evaluation?.expected_answer,
             };
           } else {
             parentTurn.evaluation = {
               ...evalResult,
               verdict: "incorrect",
+              expected_answer: evalResult.expected_answer || parentTurn.evaluation?.expected_answer,
             };
           }
         }
@@ -169,53 +174,82 @@ export async function POST(request: Request) {
     if (nextDecision.isCompleted) {
       session.isDone = true;
 
-      // Compile final report data
+      // Compile comprehensive question-level evaluation report data
       const mainQuestionTurns = session.turns.filter(
         (t) => t.type === "MAIN_QUESTION"
       );
 
-      const questionEvaluations = mainQuestionTurns.map((t) => ({
-        mainQuestionNumber: t.mainQuestionNumber,
-        topic: t.curriculumTopic,
-        day: t.curriculumDay,
-        verdict: t.evaluation?.verdict || "not_attempted",
-        conceptsDemonstrated: t.evaluation?.concepts_demonstrated || [],
-        conceptsMissing: t.evaluation?.concepts_missing || [],
-      }));
+      const questionEvaluations: QuestionEvaluationReportItem[] = mainQuestionTurns.map((t) => {
+        const followUpTurn = session.turns.find(
+          (ft) => ft.type === "FOLLOW_UP" && ft.mainQuestionNumber === t.mainQuestionNumber
+        );
+
+        return {
+          mainQuestionNumber: t.mainQuestionNumber,
+          question: t.question,
+          curriculumDay: t.curriculumDay,
+          curriculumTopic: t.curriculumTopic,
+          curriculumObjective: t.curriculumObjective,
+          candidateAnswer: t.answer || "[No answer provided]",
+          finalVerdict: t.evaluation?.verdict || "not_attempted",
+          evaluationReasoning: t.evaluation?.reasoning || "No detailed evaluation recorded.",
+          expectedAnswer: t.evaluation?.expected_answer || "Model response based on curriculum objective.",
+          followUpQuestion: followUpTurn ? followUpTurn.question : undefined,
+          followUpAnswer: followUpTurn ? (followUpTurn.answer || "[No follow-up answer]") : undefined,
+          conceptsDemonstrated: t.evaluation?.concepts_demonstrated || [],
+          conceptsMissing: t.evaluation?.concepts_missing || [],
+        };
+      });
 
       const correctCount = questionEvaluations.filter(
-        (q) => q.verdict === "correct"
+        (q) => q.finalVerdict === "correct"
+      ).length;
+
+      const partiallyCount = questionEvaluations.filter(
+        (q) => q.finalVerdict === "partially_correct"
       ).length;
 
       const overallScore = Math.round(
-        (correctCount / Math.max(questionEvaluations.length, 1)) * 100
+        ((correctCount + partiallyCount * 0.5) / Math.max(questionEvaluations.length, 1)) * 100
+      );
+
+      const strengths = Array.from(
+        new Set(
+          questionEvaluations
+            .filter((q) => q.finalVerdict === "correct")
+            .map((q) => `Demonstrated clear technical mastery of ${q.curriculumTopic} (Day ${q.curriculumDay}).`)
+        )
+      );
+
+      if (strengths.length === 0) {
+        strengths.push("Attempted technical assessment questions actively.");
+      }
+
+      const gaps = Array.from(
+        new Set(
+          questionEvaluations
+            .filter((q) => q.finalVerdict !== "correct")
+            .map((q) => `Requires review in ${q.curriculumTopic} (Day ${q.curriculumDay}) - ${q.evaluationReasoning}`)
+        )
+      );
+
+      if (gaps.length === 0) {
+        gaps.push("No major gaps identified during this assessment.");
+      }
+
+      const nextReview = Array.from(
+        new Set(
+          questionEvaluations
+            .filter((q) => q.finalVerdict !== "correct")
+            .map((q) => `Day ${q.curriculumDay} · ${q.curriculumTopic}`)
+        )
       );
 
       session.feedback = {
-        summary: `${session.candidate.member.name} completed the technical assessment covering ${mainQuestionTurns.length} main questions across ${
-          new Set(mainQuestionTurns.map((q) => q.day)).size
-        } curriculum days. Overall Score: ${overallScore}/100.`,
-        strengths: Array.from(
-          new Set(
-            questionEvaluations
-              .filter((q) => q.verdict === "correct")
-              .map((q) => `Demonstrated clear technical mastery of ${q.topic} (Day ${q.day}).`)
-          )
-        ).slice(0, 4),
-        gaps: Array.from(
-          new Set(
-            questionEvaluations
-              .filter((q) => q.verdict !== "correct")
-              .map((q) => `Requires review in ${q.topic} (Day ${q.day}) - classified as ${q.verdict}.`)
-          )
-        ).slice(0, 4),
-        next: Array.from(
-          new Set(
-            questionEvaluations
-              .filter((q) => q.verdict !== "correct")
-              .map((q) => `Review Day ${q.day} curriculum: ${q.topic}`)
-          )
-        ).slice(0, 4),
+        summary: `Technical assessment across ${mainQuestionTurns.length} questions.`,
+        strengths: strengths.slice(0, 4),
+        gaps: gaps.slice(0, 4),
+        next: nextReview.slice(0, 4),
         overallScore,
         questionEvaluations,
       };

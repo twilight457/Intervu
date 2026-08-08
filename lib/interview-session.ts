@@ -13,6 +13,7 @@ export interface EvaluationResult {
   concepts_missing: string[];
   factual_errors: string[];
   should_follow_up: boolean;
+  expected_answer?: string; // Model answer based strictly on curriculum content
 }
 
 export interface InterviewTurn {
@@ -23,11 +24,36 @@ export interface InterviewTurn {
   parentMainQuestionId?: string;
   curriculumDay: number;
   curriculumTopic: string;
-  curriculumObjective?: string; // Specific learning objective selected for this main question
+  curriculumObjective?: string;
   question: string;
   answer?: string;
   evaluation?: EvaluationResult;
   timestamp: string;
+}
+
+export interface QuestionEvaluationReportItem {
+  mainQuestionNumber: number;
+  question: string;
+  curriculumDay: number;
+  curriculumTopic: string;
+  curriculumObjective?: string;
+  candidateAnswer: string;
+  finalVerdict: EvaluationVerdict;
+  evaluationReasoning: string;
+  expectedAnswer?: string; // Model answer for non-correct responses
+  followUpQuestion?: string;
+  followUpAnswer?: string;
+  conceptsDemonstrated: string[];
+  conceptsMissing: string[];
+}
+
+export interface InterviewFeedbackReport {
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  next: string[];
+  overallScore: number;
+  questionEvaluations: QuestionEvaluationReportItem[];
 }
 
 export interface InterviewSession {
@@ -40,25 +66,11 @@ export interface InterviewSession {
     tools: string[];
   }>;
   turns: InterviewTurn[];
-  mainQuestionNumber: number; // Current MAIN question (1, 2, 3...)
-  totalPlannedMainQuestions: number; // Dynamic planned main questions (e.g. 8, 9, 10, 11)
-  followUpCount: number; // 0 or 1 max per main question
+  mainQuestionNumber: number;
+  totalPlannedMainQuestions: number;
+  followUpCount: number;
   isDone: boolean;
-  feedback?: {
-    summary: string;
-    strengths: string[];
-    gaps: string[];
-    next: string[];
-    overallScore?: number;
-    questionEvaluations?: Array<{
-      mainQuestionNumber: number;
-      topic: string;
-      day: number;
-      verdict: EvaluationVerdict;
-      conceptsDemonstrated: string[];
-      conceptsMissing: string[];
-    }>;
-  };
+  feedback?: InterviewFeedbackReport;
   createdAt: number;
 }
 
