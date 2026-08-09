@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/ea281773-73b2-445f-9c68-a133870b0ddd
+
 ## Intervu- built by Anika Kanade
 
 Intervu is an AI-powered technical interview platform that conducts structured interviews based on a candidate's role, experience, and learning background.
